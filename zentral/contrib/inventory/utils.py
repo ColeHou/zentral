@@ -507,6 +507,10 @@ class BundleFilter(BaseMSFilter):
         elif self.bundle_id:
             return "a.i.{}".format(self.bundle_id)
 
+    @staticmethod
+    def display_name(osx_app):
+        return " ".join(e for e in (osx_app["bundle_name"], osx_app["bundle_version_str"]) if e)
+
     def label_for_grouping_value(self, grouping_value):
         if not grouping_value:
             return self.none_value
@@ -515,7 +519,7 @@ class BundleFilter(BaseMSFilter):
             bundle_name = grouping_value["bundle_name"]
             if bundle_name:
                 self.title = bundle_name
-        return " ".join(e for e in (grouping_value["bundle_name"], grouping_value["bundle_version_str"]) if e)
+            return self.display_name(grouping_value)
 
     def grouping_value_from_grouping_result(self, grouping_result):
         gv = super().grouping_value_from_grouping_result(grouping_result)
@@ -532,7 +536,10 @@ class BundleFilter(BaseMSFilter):
         for osx_app in record.pop(self.grouping_set[-1], []):
             if not osx_app["id"]:
                 continue
+            osx_app["display_name"] = self.display_name(osx_app)
             osx_apps.append(osx_app)
+        osx_apps.sort(key=lambda app: (app.get("major"), app.get("minor"), app.get("patch"), app.get("build"),
+                                       app.get("id")))
         # TODO: verify no conflict
         record.setdefault("osx_apps", OrderedDict())[self.title] = osx_apps
 
@@ -965,9 +972,15 @@ class MSQuery:
         for header in headers:
             machines_ws.write_string(row, col, header)
             col += 1
-        row += 1
         for serial_number, machine_snapshots in self.fetch(paginate=False):
             for machine_snapshot in machine_snapshots:
+                if row == 0:
+                    # still the headers get the apps
+                    for app_title in machine_snapshot.get("osx_apps", {}):
+                        for suffix in ("min", "max"):
+                            machines_ws.write_string(row, col, "{} {}".format(app_title, suffix))
+                            col += 1
+                    row += 1
                 col = 0
                 machines_ws.write_number(row, col, machine_snapshot["source"]["id"])
                 col += 1
@@ -993,6 +1006,17 @@ class MSQuery:
                 tags = "|".join(dn for dn in (t.get("display_name") for t in machine_snapshot.get("tags", [])) if dn)
                 machines_ws.write_string(row, col, tags)
                 col += 1
+                for _, app_versions in machine_snapshot.get("osx_apps", {}).items():
+                    if app_versions:
+                        min_app_version = app_versions[0]["display_name"]
+                        max_app_version = app_versions[-1]["display_name"]
+                    else:
+                        min_app_version = max_app_version = ""
+                    machines_ws.write_string(row, col, min_app_version)
+                    col += 1
+                    machines_ws.write_string(row, col, max_app_version)
+                    col += 1
+
                 row += 1
         workbook.close()
 
