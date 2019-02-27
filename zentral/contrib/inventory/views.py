@@ -5,7 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse, reverse_lazy
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
-from django.utils.timezone import make_naive
+from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, FormView, ListView, TemplateView, UpdateView, View
 from zentral.core.stores import frontend_store
 from zentral.conf import settings
@@ -49,7 +49,8 @@ class MachineListView(LoginRequiredMixin, FormView):
                 response = HttpResponse(
                     content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 )
-                response['Content-Disposition'] = "attachment; filename=inventory_export.xlsx"
+                filename = "inventory_export_{:%Y-%m-%d_%H-%M-%S}.xslx".format(timezone.now())
+                response['Content-Disposition'] = "attachment; filename={}".format(filename)
                 self.msquery.export_xlsx(response)
                 return response
         return super().dispatch(request, *args, **kwargs)
@@ -389,7 +390,7 @@ class MachineView(LoginRequiredMixin, TemplateView):
             date_class = None
             if ua_max_dates:
                 # should always be the case
-                all_ua_max_date = make_naive(ua_max_dates[0][1])
+                all_ua_max_date = timezone.make_naive(ua_max_dates[0][1])
                 if heartbeat_timeout:
                     if datetime.utcnow() - all_ua_max_date > heartbeat_timeout:
                         date_class = "danger"
