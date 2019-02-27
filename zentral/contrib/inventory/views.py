@@ -49,7 +49,7 @@ class MachineListView(LoginRequiredMixin, FormView):
                 response = HttpResponse(
                     content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 )
-                filename = "inventory_export_{:%Y-%m-%d_%H-%M-%S}.xslx".format(timezone.now())
+                filename = "inventory_export_{:%Y-%m-%d_%H-%M-%S}.xlsx".format(timezone.now())
                 response['Content-Disposition'] = "attachment; filename={}".format(filename)
                 self.msquery.export_xlsx(response)
                 return response
