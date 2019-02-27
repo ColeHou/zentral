@@ -1016,7 +1016,25 @@ class MSQuery:
                     col += 1
                     machines_ws.write_string(row, col, max_app_version)
                     col += 1
-
+                row += 1
+        # aggregations
+        for f, f_links, _ in self.grouping_links():
+            ws = workbook.add_worksheet(f.title)
+            row = col = 0
+            headers = ["Value", "Count", "%"]
+            for header in headers:
+                ws.write_string(row, col, header)
+                col += 1
+            row += 1
+            for label, f_count, f_perc, _, _ in f_links:
+                if label == "\u2400":
+                    label = "NULL"
+                col = 0
+                ws.write_string(row, col, label)
+                col += 1
+                ws.write_number(row, col, f_count)
+                col += 1
+                ws.write_number(row, col, f_perc)
                 row += 1
         workbook.close()
 
