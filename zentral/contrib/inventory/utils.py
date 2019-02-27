@@ -165,7 +165,13 @@ class SourceFilter(BaseMSFilter):
         if not grouping_value:
             return self.none_value
         else:
-            return grouping_value["name"]
+            display_name = grouping_value["name"]
+            config = grouping_value.get("config")
+            if config:
+                host = config.get("host")
+                if host:
+                    display_name = "/".join(e for e in (display_name, host) if e)
+            return display_name
 
     def query_kwarg_value_from_grouping_value(self, grouping_value):
         if not grouping_value:
