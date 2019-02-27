@@ -45,6 +45,13 @@ class MachineListView(LoginRequiredMixin, FormView):
             redirect_url = self.msquery.redirect_url()
             if redirect_url:
                 return HttpResponseRedirect(redirect_url)
+            if "xlsx" in request.GET:
+                response = HttpResponse(
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = "attachment; filename=inventory_export.xlsx"
+                self.msquery.export_xlsx(response)
+                return response
         return super().dispatch(request, *args, **kwargs)
 
     def get_list_title(self):
@@ -88,6 +95,11 @@ class MachineListView(LoginRequiredMixin, FormView):
             breadcrumbs.extend([(reset_link, anchor_text),
                                 (None, "page {} of {}".format(self.msquery.page, num_pages))])
         ctx['breadcrumbs'] = breadcrumbs
+        # xlsx link
+        xlsx_qs = self.request.GET.copy()
+        xlsx_qs["xlsx"] = True
+        xlsx_link = "?{}".format(xlsx_qs.urlencode())
+        ctx["xlsx_link"] = xlsx_link
         return ctx
 
     def form_valid(self, form):

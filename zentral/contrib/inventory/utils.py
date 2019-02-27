@@ -8,6 +8,7 @@ from django import forms
 from django.db import connection
 from prometheus_client import (CollectorRegistry, Gauge,  # NOQA
                                generate_latest, CONTENT_TYPE_LATEST as prometheus_metrics_content_type)
+import xlsxwriter
 from zentral.utils.json import log_data
 from .events import (post_enrollment_secret_verification_failure, post_enrollment_secret_verification_success,
                      post_inventory_events)
@@ -945,6 +946,55 @@ class MSQuery:
                 for f in self.filters:
                     f.process_fetched_record(machine_snapshot)
             yield record["serial_number"], record["machine_snapshots"]
+
+    # export
+    def export_xlsx(self, http_response):
+        workbook = xlsxwriter.Workbook(http_response, {'in_memory': True})
+        # machines
+        machines_ws = workbook.add_worksheet("Machines")
+        headers = [
+            "Source ID", "Source",
+            "SN", "Type", "Platform",
+            "Name",
+            "Hardware model",
+            "OS",
+            "tags"
+        ]
+        row = 0
+        col = 0
+        for header in headers:
+            machines_ws.write_string(row, col, header)
+            col += 1
+        row += 1
+        for serial_number, machine_snapshots in self.fetch(paginate=False):
+            for machine_snapshot in machine_snapshots:
+                col = 0
+                machines_ws.write_number(row, col, machine_snapshot["source"]["id"])
+                col += 1
+                machines_ws.write_string(row, col, machine_snapshot["source"].get("display_name") or "")
+                col += 1
+                machines_ws.write_string(row, col, serial_number)
+                col += 1
+                machines_ws.write_string(row, col, machine_snapshot.get("type") or "")
+                col += 1
+                machines_ws.write_string(row, col, machine_snapshot.get("platform") or "")
+                col += 1
+                machines_ws.write_string(row, col, machine_snapshot.get("computer_name") or "")
+                col += 1
+                machines_ws.write_string(row, col, machine_snapshot.get("hardware_model") or "")
+                col += 1
+                os_version = machine_snapshot.get("os_version")
+                if os_version:
+                    os_version_dn = os_version.get("display_name") or ""
+                else:
+                    os_version_dn = ""
+                machines_ws.write_string(row, col, os_version_dn)
+                col += 1
+                tags = "|".join(dn for dn in (t.get("display_name") for t in machine_snapshot.get("tags", [])) if dn)
+                machines_ws.write_string(row, col, tags)
+                col += 1
+                row += 1
+        workbook.close()
 
 
 class BundleFilterForm(forms.Form):
